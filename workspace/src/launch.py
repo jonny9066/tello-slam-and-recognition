@@ -17,9 +17,9 @@ def generate_launch_description():
                 {'tf_base': 'map'},
                 {'tf_drone': 'drone'}
             ],
-            remappings=[
-                ('/image_raw', '/camera')
-            ],
+            # remappings=[
+            #     ('/image_raw', '/camera')
+            # ],
             respawn=True
         ),
 
@@ -51,7 +51,7 @@ def generate_launch_description():
             namespace='/',
             name='rviz2',
             respawn=True,
-            arguments=['-d', '/home/tentone/Git/tello-slam/workspace/src/rviz.rviz']
+            arguments=['-d', '/home/jon/tello-slam-and-recognition/workspace/src/rviz.rviz']
         ),
 
         # Static TF publisher
@@ -64,19 +64,20 @@ def generate_launch_description():
             respawn=True
         ),
 
+
         # ORB SLAM
-        # Node(
-        #     package='orbslam2',
-        #     executable='mono',
-        #     output='screen',
-        #     namespace='/',
-        #     name='orbslam',
-        #     respawn=True,
-        #     remappings=[
-        #         ('/camera', '/image_raw')
-        #     ],
-        #     arguments=['~/Git/tello-slam/libs/ORB_SLAM2/Vocabulary/ORBvoc.txt', '~/Git/tello-slam/workspace/src/orbslam2/config.yaml']
-        # ),
+        Node(
+            package='orbslam2',
+            executable='mono',
+            output='screen',
+            namespace='/',
+            name='orbslam',
+            respawn=True,
+            remappings=[
+                ('/camera', '/image_raw')
+            ],
+            arguments=['home/jon/tello-slam-and-recognition/libs/ORB_SLAM2/Vocabulary/ORBvoc.txt', '~/home/jon/tello-slam-and-recognition/workspace/src/orbslam2/config.yaml']
+        ),
 
         # Camera calibration node
         # Node(

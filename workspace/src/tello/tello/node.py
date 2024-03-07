@@ -26,13 +26,13 @@ import ament_index_python
 # Tello ROS node class, inherits from the Tello controller object.
 #
 # Can be configured to be used by multiple drones, publishes, all data collected from the drone and provides control using ROS messages.
-class TelloNode():
-    def __init__(self, node):
+class TelloNode(Node):
+    def __init__(self,node):
         # ROS node
         self.node = node
 
         # Declare parameters
-        self.node.declare_parameter('connect_timeout', 10.0)
+        self.node.declare_parameter('connect_timeout', 20.0)
         self.node.declare_parameter('tello_ip', '192.168.10.1')
         self.node.declare_parameter('tf_base', 'map')
         self.node.declare_parameter('tf_drone', 'drone')
@@ -348,6 +348,7 @@ def main(args=None):
 
     rclpy.spin(node)
 
+    
     drone.cb_shutdown()
     node.destroy_node()
     rclpy.shutdown()
