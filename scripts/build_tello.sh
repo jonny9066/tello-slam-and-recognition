@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd ../workspace
+d ~/tello-slam-and-recognition/workspace #set project root directory
 rm -rf build install log
 
 rosdep install -i --from-path src

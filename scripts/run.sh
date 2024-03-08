@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Source the workspace
-cd ../workspace
+d ~/tello-slam-and-recognition/workspace #set project root directory
 . install/setup.bash
 
 # Run packages
