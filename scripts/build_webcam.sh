@@ -1,4 +1,4 @@
-cd ~/tello-slam-and-recognition/workspace #set project root directory
+cd ~/tello-slam-and-recognition/workspace/ #set project root directory
 # rm -rf build install log
 
 # pwd
