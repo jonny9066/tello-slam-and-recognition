@@ -4,15 +4,19 @@ from sensor_msgs.msg import Image
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
+# from tello_msg.msg import ObjectDetectionBox
+from sensor_msgs.msg import CameraInfo
 
 black_box = np.zeros((10,10))
 cv2.imshow("frame",black_box)
-from ultralytics import YOLO #must import after first imshow or freeze.
+cv2.waitKey(1)
+from ultralytics import YOLO #must import after first cv2.imshow() or freeze.
 
 class ImageSubscriber(Node):
     def __init__(self):
         super().__init__('image_subscriber')
-        self.subscription = self.create_subscription(Image, '/camera/color/image_raw', self.image_callback, 10)
+        self.subscription = self.create_subscription(Image, '/camera/image_raw', self.image_callback, 10)
+        self.bounding_box_publisher = self.create_publisher(CameraInfo, 'object_detection_box', 10) 
         self.subscription  # prevent unused variable warning
         self.bridge = CvBridge()
         self.model = YOLO("yolov8n.pt") # model parameters
@@ -23,44 +27,88 @@ class ImageSubscriber(Node):
         except Exception as e:
             self.get_logger().error("Error converting image: %s" % str(e))
             return
-        results = self.model(cv_image)
-        annotated = results[0].plot()
-        cv2.imshow("frame",annotated)
+        
+        
+        results = self.model(cv_image, verbose=False) #model returns detections for each image, here we have one image only
+        if(len(results)==0):
+            return
+        
+        # get all results
+        boxes = results[0].boxes.xywh.tolist()
+        classes = results[0].boxes.cls.tolist()
+        names = results[0].names
+  
 
-        cv2.waitKey(1)
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
+        # get coordinates first detected chair class
+        # found_chair = False
+        # coord_list = []
+        min_box = "nope"
+        max_val = -1
+        for i, b, cls in zip(range(len(boxes)), boxes, classes):
+            if names[int(cls)] == 'chair':
+                name = names[int(cls)]
+                box = b
+                x,y,w,h = tuple(int(a) for a in box)    
+                if y>max_val: # bigger y is lower in the image
+                    max_val = y
+                    min_box = (x,y,w,h)
+
+                
+                # coord_list.append(x,y,w,h)
+                # found_chair = True
+                # break
+            
+        # if not found_chair:
+        #     return
+            
+        if min_box == "nope":
+            return
+        
+        # min_index = min(range(len(coord_list)), key=lambda i: coord_list[i][:2]))
+
+        # x,y,w,h = tuple(int(a) for a in box)
+
+        x,y,w,h = min_box
+
+        # Draw the rectangle
+        # cv2.rectangle(cv_image, (x+int(w/2), y+int(h/2)), (x - int(w/2), y - int(h/2)), (0, 255, 0), 2)
+        # cv2.imshow("frame",cv_image)
+        # cv2.waitKey(1)
+        
+        # using a hack to avoid creating a custom message, which would require building ros1 bridge in a special way
+        box_msg = CameraInfo()
+        # std_msgs/Header header
+        # uint32 height
+        # uint32 width
+        # string distortion_model
+        # float64[] D
+        # float64[9] K
+        # float64[9] R
+        # float64[12] P
+        # uint32 binning_x
+        # uint32 binning_y
+        # sensor_msgs/RegionOfInterest roi
+        box_msg.binning_x = x
+        box_msg.binning_y = y
+        box_msg.width = w
+        box_msg.height = h
+        box_msg.distortion_model = name
+        self.bounding_box_publisher.publish(box_msg)
 
         
-# cap = cv2.VideoCapture(0)
-# ret, frame = cap.read()
-# cv2.imshow("frame",frame)
+        # uncomment to show result image with all detections. For manually drawn rectange see above
+        # results = self.model(cv_image)
+        # annotated = results[0].plot()
+        # cv2.imshow("frame",annotated)
 
-# from ultralytics import YOLO #must import after first imshow or freeze.
-# model = YOLO("yolov8n.pt")
+        # cv2.waitKey(1)
 
-
-# while True:
-#     ret, frame = cap.read()
-
-#     results = model(frame)
-#     # cv2.imshow("frame",frame)
-
-#     annotated = results[0].plot()
-#     cv2.imshow("frame",annotated)
-
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
-
-#         # Display the image or perform any desired processing
-#         cv2.imshow("Image", cv_image)
-#         cv2.waitKey(1)
 
 def main(args=None):
     rclpy.init(args=args)
 
     image_subscriber = ImageSubscriber()
-
+    
     rclpy.spin(image_subscriber)
 
     image_subscriber.destroy_node()

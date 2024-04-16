@@ -3,4 +3,4 @@ cd ~/tello-slam-and-recognition/workspace #set project root directory
 
 # pwd
 rosdep install -i --from-path src
-colcon build --symlink-install --packages-select webcam_pub
+colcon build --symlink-install --packages-select object_detection

@@ -9,6 +9,7 @@ public:
         publisher_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_raw", 10);
         timer_ = this->create_wall_timer(std::chrono::milliseconds(1), std::bind(&WebcamPublisher::capture_and_publish, this));
         cap_.open("http://10.0.0.8:4747/video"); // android ip webcam
+        // cap_.open(0); // usb webcam
     }
 
 private:
