@@ -1,17 +1,14 @@
 
-# Object mapping in 3D environment using SLAM
+# Placing objects in 3D environment with SLAM and object detection
 
 ## Overview
-Our goal is to create a 3D map of the environment in correct scale and to accurately place objects in it.
+Our goal is to create a 3D map of the environment (in real-world scale) and to accurately place objects in it.
 
 ![Output sample](https://github.com/jonny9066/tello-slam-and-recognition/blob/main/readme/objectdet2.gif?raw=true)   
 (In blue is the point cloud associated with the object currently in focus, white is the detection, and the red arrow is the camera pose.)
 
 ## Background
 The algorithms we use are the YOLO neural network and ORB-SLAM. 
-
-todo remove
-We use YOLO to compute bounding boxes around objects in the 2D image, and ORB-SLAM to compute a 3D map of the world.
 
 We detect objects in the 2D image using the YOLO model, and then use our algorithm to detect the corresponding objects in the ORB-SLAM generated 3D point cloud. We proceed to present informal descriptions of the algorithms that are relevant to out work.
 
@@ -27,14 +24,14 @@ A neural network that receives an image and outputs a bounding box around each d
 
 
 ## Our Algorithm
-ORB-SLAM provides a 3D map that consists of a point cloud corresponding to ORB features detected in images, and YOLO provides bounding boxes around objects in the 2D image. Our challenge is to determine which points in the cloud correspond to the object, to determine its location from it, and to update the location as the map is updated by ORB-SLAM.
+ORB-SLAM provides a 3D map that consists of a point cloud corresponding to ORB features detected in images, and YOLO provides bounding boxes around objects in the 2D image. The obvious approach is to determine which points in the cloud correspond to the detected objects and to determine their location from it. However, SLAM mapping is not ideal and introduces non-trivial challenges due to measurement errors and scale ambiguity. 
 
-The outline of our algorithm is as follows. The first thing we do is to compute the scale of the scene. Then we enter object detection mode, where with each new YOLO detection we either add a new object to the map or update the location of an existing object that is re-detected.
+The outline of our algorithm is as follows. The first thing we do is to compute the scale of the scene using knowledge if the real-world scale of detected objects. Then, we enter object detection mode, where with each new YOLO detection we either add a new object to the map or update the location of an existing object that is re-detected. We proceed to explain our algorithm in more detail.
 
 ### Scale
-To compute the scale, we perform a measurement of an object in the 3D world and the same measurement in the real world. Then we compute the scale $s$ using the equation $s\cdot d_m = d_r$, where $d_m$ is the 3D world distance and $d_r$ is the real-world distance.  
+To compute the scale, we perform a measurement of an object in the 3D world and a measurement of the same object in the real world. Then we compute the scale $s$ using the equation $s\cdot d_m = d_r$, where $d_m$ is the 3D world length and $d_r$ is the real-world length.  
 In case the object is a chair, we use the distance between its two legs, computed as follows:
-1. Several keypoings ear each leg are found in the 2D image.
+1. Several keypoings near each leg are found in the 2D image.
 2. Corresponding 3D map points are computed.
 3. The distance is computed between the two points.
 
@@ -42,13 +39,29 @@ In case the object is a chair, we use the distance between its two legs, compute
 (The red line corresponds to distance measureemnt in the 3D world)
 
 ### Object Detection
-We focus on one detected object at a time when there are several in the image. We first compute an estimate of the current object. We repeat this several times for consistency. When we have an estimate, we check whether it collides with an already detected object. If so, we assume it is the same object, and update its location. Otherwise, we add a new object coordinate to the list of detected objects. 
+We focus on one detected object at a time when there are several in the image. We first compute several estimates of the current objects and check they are consistent. When we have a reliable estimate, we check whether it collides with an already detected object. If it collides, we assume it is the same object, and update its location. Otherwise, we add a new object coordinate to the list of detected objects. 
 
-Considerations
-1. An object is represented as the feature points that it was detected with. This allows its location to be updated by ORB-SLAM during bundle adjustemnt and loop closure.
-2. There is drift due to the nature of the ORB-SLAM algorithm. Updating the location of an object with each detection prevents it from being detected twice after the first decection drifts.
+### Object detection algorithm
+Do this with each new object detection:
+1. Ceate a candidate object point.
+    1. Get keypoints in the 2D image near the object center.
+    2. If there are enough points, initialize candidate by taking the corresponding point cloud and filtering outliers. This is done by checking distances from the camera and ignoring points that are too close or too far from the median.
+    3. Check consistency with last candidate.
+        1. If none, initialze points and counter and return.
+        2. Otherwise, check distance* from last candidate.
+            1. If candidates collide, then increment score counter. Otherwise initialize a new candidate.
+            2.  When a candidate has a high enough score, proceed to the next step.
+2. Try adding a new object or update location of existing object.
+    1. Compute distance from all other objects.
+    2. If the distance is small enough, consider this a collision and update the location of the object with the location of the candidate. Otherwise, add the candidate as a new object.
+    3. (todo) Mark points in a special way and prevent them from being removed in BA, and unmark unnecessary points.
 
-The objects are mapped as follows 
+*When we say we check the distance between two point clouds, we mean the distance between the average point of each.
+
+Regularly updating the location of the object is helpful becuase there is a drift of the scene due to the nature of the ORB-SLAM algorithm where new points are regulalrly added and old ones are removed. Updating the location of an object with each detection prevents it from being detected twice after the first decection drifts. Additionally, representing an object as the feature points that it was detected with has several advanages: (1) it allows the object's location to be updated by ORB-SLAM algorithm during bundle adjustemnt and loop closure, and (2) it makes it possible for the object to be re-detected with similar ORB features, which it might not if we chose an arbitrary point to represent it. todo-elaborate.
+
+
+The objects are mapped as follows:  
 ![2dmap](https://github.com/jonny9066/tello-slam-and-recognition/blob/main/readme/2dmap.png?raw=true)  
 (blue line is the camera pose nad the numbers represent the order of detection)  
 The real scene for reference, where the chairs are the detected objects:
@@ -67,7 +80,7 @@ while the distances measured in the real world are:
 ## Setup
 Tools used are: C++, Python, ROS, Docker.  
 
-We provide instructions that were tested on Ubuntu 22. The code is split over two repositories. The first repository is this one, and it uses ROS2. The scond repository uses ROS1 and must be run from inside a container due to incompatibility of ROS1 with Ubuntu 22. Addionally, the container allows easy building of ORB-SLAM 2, which may cause difficulties with newer versions of Ubuntu and required libraries.
+We provide instructions that were tested on Ubuntu 22. The code is split over two repositories. The first repository is this one, and it uses ROS2. The scond repository uses ROS1 and must be run from inside a container due to incompatibility of ROS1 with Ubuntu 22. Addionally, the container allows easy building of ORB-SLAM 2, which may cause difficulties with newer versions of Ubuntu and of required libraries.
 
 ### Host
 Setup environment
@@ -102,7 +115,7 @@ Setup our code inside the container
 2. Do not follow all instructions there, as many dependencies are already installed. Follow only the instructions for h264decoder and for building ORB-SLAM 2.
 
 Run
-1. Execute the command `xhost + local:docker` on host machine.  
+1. Execute the command `xhost + local:docker` on the host.  
 2. Inside docker, run
 ```
 cd ~/ROS/Tello_ROS_ORBSLAM/ROS/tello_catkin_ws
@@ -111,8 +124,7 @@ roslaunch flock_driver orbslam2_with_cloud_map.launch
 
 
 ## Acknowledgements
-We used code from https://github.com/tentone/tello-ros2 and 
-https://github.com/tau-adl/Tello_ROS_ORBSLAM.
+Additionally to the above mentioned work, we used code from https://github.com/tau-adl/Tello_ROS_ORBSLAM and https://github.com/tentone/tello-ros2.
 
 
 ## Future directions
