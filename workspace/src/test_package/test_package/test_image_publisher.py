@@ -15,7 +15,7 @@ class ImagePublisher(Node):
         # self.timer_period_ = 0.066  # 15fps
         self.timer_ = self.create_timer(self.timer_period_, self.publish_image)
         # self.cap = cv2.VideoCapture('/home/jon/Downloads/orb_init_vid1.mp4') 
-        self.cap = cv2.VideoCapture('/home/jon/Downloads/chairs1.mp4') 
+        self.cap = cv2.VideoCapture('/home/jon/Downloads/garden1.mp4') 
 
 
 

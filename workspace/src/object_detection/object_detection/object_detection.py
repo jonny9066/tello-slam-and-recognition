@@ -28,6 +28,11 @@ class ImageSubscriber(Node):
             self.get_logger().error("Error converting image: %s" % str(e))
             return
         
+        im_x_mid = cv_image.shape[1]//2
+        im_y_mid = cv_image.shape[0]//2
+        # print(im_x)
+        # print(im_y)
+        # exit()
         
         results = self.model(cv_image, verbose=False) #model returns detections for each image, here we have one image only
         if(len(results)==0):
@@ -37,20 +42,22 @@ class ImageSubscriber(Node):
         boxes = results[0].boxes.xywh.tolist()
         classes = results[0].boxes.cls.tolist()
         names = results[0].names
+        confidences = results[0].boxes.conf.tolist()
   
 
         # get coordinates first detected chair class
         # found_chair = False
         # coord_list = []
         min_box = "nope"
-        max_val = -1
-        for i, b, cls in zip(range(len(boxes)), boxes, classes):
-            if names[int(cls)] == 'chair':
+        min_dist = 100000
+        for i, b, cls, conf in zip(range(len(boxes)), boxes, classes,confidences):
+            if names[int(cls)] == 'chair' and conf > .72:
                 name = names[int(cls)]
                 box = b
-                x,y,w,h = tuple(int(a) for a in box)    
-                if y>max_val: # bigger y is lower in the image
-                    max_val = y
+                x,y,w,h = tuple(int(a) for a in box)
+                dist_from_mid = abs(x-im_x_mid) + abs(y-im_y_mid)
+                if dist_from_mid < min_dist: # bigger y is lower in the image
+                    min_dist = dist_from_mid
                     min_box = (x,y,w,h)
 
                 
@@ -97,10 +104,17 @@ class ImageSubscriber(Node):
 
         
         # uncomment to show result image with all detections. For manually drawn rectange see above
-        # results = self.model(cv_image)
-        # annotated = results[0].plot()
-        # cv2.imshow("frame",annotated)
+        results = self.model(cv_image)
+        annotated = results[0].plot()
+        cv2.rectangle(annotated, (x+int(w/2), y+int(h/2)), (x - int(w/2), y - int(h/2)), (0, 255, 0), 5)
 
+
+        im_x_mid = cv_image.shape[0]//2
+        im_y_mid = cv_image.shape[1]//2
+
+        # cv2.circle(annotated, (im_y_mid, im_x_mid), 5, (0, 255, 0), -1)  # Green circle
+        # cv2.circle(annotated, (x, y), 5, (0, 255, 0), -1)  # Green circle
+        # cv2.imshow("frame",annotated)
         # cv2.waitKey(1)
 
 
