@@ -13,9 +13,9 @@ The algorithms we use are the YOLO neural network and ORB-SLAM.
 We detect objects in the 2D image using the YOLO model, and then we use our algorithm to detect the corresponding objects in the ORB-SLAM generated 3D point cloud. We proceed to present informal descriptions of the algorithms that are relevant to out work.
 
 ### ORB-SLAM
-A fast algorithm for SLAM that uses ORB features. Initially, a 3D scene is constructed from a pair of frames by matching feature points, computing the essential matrix, and then triangulating the points. The 3D scene consists of points and of keyframes, where keyframes are the poses of "useful" frames. As a new frame is processed, its features are matched against previous frames, as well as against nearby frames, and only its position is computed. If a frame has enough "useful" features, then it is added to the map, and new points are triangulated.  
+A fast, open-source algorithm for SLAM that uses ORB features. Initially, a 3D scene is constructed from a pair of frames by matching feature points, computing the essential matrix, and then triangulating the points. The 3D scene consists of points and of keyframes, where keyframes are the poses of "useful" frames. As a new frame is processed, its features are matched against previous frames, as well as against nearby frames, and only its position is computed. If a frame has enough "useful" features, then it is added to the map, and new points are triangulated.  
 ![two-view](https://github.com/jonny9066/tello-slam-and-recognition/blob/main/readme/two-view-triangulate.png?raw=true)  
-(P1' and P2' are matching ORB features and P is the corresponding real-world point that ORB-SLAM aims to compute. )
+(P1' and P2' are matching ORB features and P is the corresponding real-world point that ORB-SLAM tries to compute. )
 
 To reduce error and keep the map consistent, bundle adjestemnt is performed with each new frame, and with the addition of each frame to the map (albeit differently in each case). This minimizes the reprojection error of the points to the keyframes and makes the map more consistent. Additionally, keyframes and points may be removed to keep the map smaller, which allows the algorithm to be more effcient. Finally, loop closure is computed when two distant frames match, which is checked with the addition of each new frame. When a loop is detected, then a transformation is computed between the two ends, and frames and points on both ends of the loop are updated with this transformation.  
 
@@ -45,7 +45,7 @@ In case the object is a chair, we use the distance between its two legs, compute
 (The red line corresponds to distance measureemnt in the 3D world)
 
 ### Object Detection
-We first compute the location of the object in the bounding box and then try to add it to the map. We check whether the current object has already been added by comparing its location to that of existing objects by using the distance between them, where a small enough distance indicates equality. If there is no match, we add a new object, and if there is a match, we update the location of the matched object. To avoid making many comparisons with each new frame, we wait until a the same location is detected several times in a row and only then attempt to add a new object.
+We first compute the location of the object in the bounding box and then try to add it to the map. We check whether the current object has already been added by comparing its location to that of existing objects; we compare by using the distance between the objects, where a small enough distance indicates equality. If there is no match, we add a new object, and if there is a match, we update the location of the matched object. To avoid making many comparisons with each new frame, we wait until a the same object is detected several times in a row and only then attempt to add it.
 
 
 **Object detection algorithm in detail**  
